@@ -1,0 +1,28 @@
+import React, { useState, useEffect } from "react";
+import { getContract }  from "../utils/ethers.js";
+
+const History = () => {
+  const [lotteryHistory, setLotteryHistory] = useState([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const contract = getContract();
+      const history = await contract.lotteryHistory();
+      setLotteryHistory(history);
+    };
+    fetchHistory();
+  }, []);
+
+  return (
+    <div className="history-container">
+      <h2>Lottery Winners History</h2>
+      <ul>
+        {lotteryHistory.map((winner, index) => (
+          <li key={index}>Lottery #{index + 1}: {winner}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default History;

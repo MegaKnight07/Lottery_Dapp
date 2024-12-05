@@ -1,0 +1,83 @@
+import React, { useState, useEffect } from "react";
+import { ethers } from "ethers";
+import { getContract } from "../utils/ethers.js";
+import { useHistory } from "react-router-dom";
+import { useSpring, animated } from "react-spring";
+import { toast } from "react-toastify";
+
+const Lottery = () => {
+  const [account, setAccount] = useState(null);
+  const [players, setPlayers] = useState([]);
+  const [entryFee, setEntryFee] = useState(0);
+  const [lotteryActive, setLotteryActive] = useState(false);
+  const [recentWinner, setRecentWinner] = useState(null);
+  const history = useHistory();
+
+  useEffect(() => {
+    const fetchState = async () => {
+      const contract = getContract();
+      const fee = await contract.entryFee();
+      const active = await contract.isLotteryActive();
+      const winner = await contract.recentWinner();
+      const playersList = await contract.getCurrentPlayers();
+
+      setEntryFee(ethers.utils.formatEther(fee));
+      setLotteryActive(active);
+      setRecentWinner(winner);
+      setPlayers(playersList);
+    };
+    fetchState();
+  }, []);
+
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const address = await signer.getAddress();
+      setAccount(address);
+    } else {
+      toast.error("Please install MetaMask.");
+    }
+  };
+
+  const handleEnterLottery = async () => {
+    const contract = getContract();
+    try {
+      const tx = await contract.enter({ value: ethers.utils.parseEther(entryFee) });
+      await tx.wait();
+      toast.success("Successfully entered the lottery!");
+    } catch (error) {
+      toast.error("Error entering lottery.");
+    }
+  };
+
+  const handleEndLottery = async () => {
+    const contract = getContract();
+    try {
+      const tx = await contract.endLottery();
+      await tx.wait();
+      toast.success("Lottery ended successfully!");
+    } catch (error) {
+      toast.error("Error ending lottery.");
+    }
+  };
+
+  return (
+    <div className="lottery-container">
+      <animated.h1 className="lottery-title" style={useSpring({ opacity: 1, from: { opacity: 0 } })}>
+        Decentralized Lottery
+      </animated.h1>
+      <button onClick={connectWallet}>
+        {account ? `Connected: ${account.slice(0, 6)}...` : "Connect Wallet"}
+      </button>
+      <h3>Entry Fee: {entryFee} ETH</h3>
+      <button disabled={!lotteryActive} onClick={handleEnterLottery}>Enter Lottery</button>
+      <button onClick={handleEndLottery}>End Lottery</button>
+      <div>Players: {players.length}</div>
+      <div>Recent Winner: {recentWinner || "None"}</div>
+      <button onClick={() => history.push('/history')}>View History</button>
+    </div>
+  );
+};
+
+export default Lottery;
